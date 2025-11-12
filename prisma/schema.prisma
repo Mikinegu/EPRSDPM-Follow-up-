@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff          Staff[]
+  dls            DL[]
+  attendanceRecords AttendanceRecord[]
+}
+
+model Staff {
+  id        String   @id @default(cuid())
+  name      String
+  siteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site       Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance StaffAttendance[]
+
+  @@index([siteId])
+}
+
+model DL {
+  id        String   @id @default(cuid())
+  name      String
+  siteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site       Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance DLAttendance[]
+
+  @@index([siteId])
+}
+
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  date      String
+  siteId    String
+  createdAt DateTime @default(now())
+
+  site            Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  staffAttendance StaffAttendance[]
+  dlAttendance    DLAttendance[]
+
+  @@index([siteId])
+  @@index([date])
+}
+
+model StaffAttendance {
+  id                 String   @id @default(cuid())
+  attendanceRecordId String
+  staffId            String
+  present            Boolean
+  createdAt          DateTime @default(now())
+
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  staff            Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceRecordId, staffId])
+  @@index([attendanceRecordId])
+  @@index([staffId])
+}
+
+model DLAttendance {
+  id                 String   @id @default(cuid())
+  attendanceRecordId String
+  dlId               String
+  present            Boolean
+  createdAt          DateTime @default(now())
+
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  dl               DL               @relation(fields: [dlId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceRecordId, dlId])
+  @@index([attendanceRecordId])
+  @@index([dlId])
+}
