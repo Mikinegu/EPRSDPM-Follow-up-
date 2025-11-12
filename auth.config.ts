@@ -7,10 +7,11 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const isAdmin = (auth?.user as any)?.role === 'admin';
       const isOnAdmin = nextUrl.pathname.startsWith('/admin');
       
       if (isOnAdmin) {
-        if (isLoggedIn) return true;
+        if (isLoggedIn && isAdmin) return true;
         return false;
       }
       return true;
