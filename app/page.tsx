@@ -121,10 +121,10 @@ export default function Home() {
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Entoto Peacock Manpower Follow-Up Sheet</h1>
           <Link 
-            href="/dashboard"
+            href="/admin"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            View Dashboard
+            Admin Panel
           </Link>
         </div>
 
