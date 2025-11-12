@@ -6,32 +6,51 @@ async function main() {
   await prisma.staffAttendance.deleteMany()
   await prisma.dLAttendance.deleteMany()
   await prisma.attendanceRecord.deleteMany()
+  await prisma.staffAssignment.deleteMany()
+  await prisma.dLAssignment.deleteMany()
   await prisma.staff.deleteMany()
   await prisma.dL.deleteMany()
   await prisma.site.deleteMany()
 
   const sites = [
     {
-      name: 'Entoto Main',
-      staff: ['John Doe', 'Jane Smith', 'Bob Johnson', 'Alice Williams', 'Charlie Brown'],
-      dls: ['Driver Alex', 'Driver Mike', 'Driver Sarah']
+      name: 'immigration / Ambasador Site',
+      staff: [],
+      dls: []
     },
     {
-      name: 'Peacock Villa',
-      staff: ['Emma Davis', 'Michael Chen', 'Sophia Rodriguez', 'Liam Taylor'],
-      dls: ['Driver Tom', 'Driver Lisa']
+      name: 'Bambis Site',
+      staff: [],
+      dls: []
     },
     {
-      name: 'Entoto Hills',
-      staff: ['Olivia Martinez', 'Noah Anderson', 'Ava Thomas', 'William Jackson', 'Isabella White', 'James Harris'],
-      dls: ['Driver David', 'Driver Emma', 'Driver Robert']
+      name: 'Guto Meda Site',
+      staff: [],
+      dls: []
     },
     {
-      name: 'Forest Lodge',
-      staff: ['Mia Martin', 'Lucas Thompson', 'Charlotte Garcia'],
-      dls: ['Driver John', 'Driver Mary']
+      name: 'Meketeya Site',
+      staff: [],
+      dls: []
+    },
+    {
+      name: 'Petros Pawlos Site',
+      staff: [],
+      dls: []
+    },
+    {
+      name: 'Filweha Site',
+      staff: [],
+      dls: []
+    },
+    {
+      name: 'Peacock Site',
+      staff: [],
+      dls: []
     }
   ]
+
+  const today = new Date().toISOString().split('T')[0]
 
   for (const siteData of sites) {
     const site = await prisma.site.create({
@@ -40,25 +59,51 @@ async function main() {
       },
     })
 
+    const createdStaff = []
     for (const staffName of siteData.staff) {
-      await prisma.staff.create({
+      const staff = await prisma.staff.create({
         data: {
           name: staffName,
           siteId: site.id,
+          isActive: true,
         },
       })
+      createdStaff.push(staff.id)
     }
 
+    const createdDls = []
     for (const dlName of siteData.dls) {
-      await prisma.dL.create({
+      const dl = await prisma.dL.create({
         data: {
           name: dlName,
           siteId: site.id,
+          isActive: true,
         },
+      })
+      createdDls.push(dl.id)
+    }
+
+    if (createdStaff.length) {
+      await prisma.staffAssignment.createMany({
+        data: createdStaff.map(staffId => ({
+          siteId: site.id,
+          staffId,
+          date: today,
+        })),
       })
     }
 
-    console.log(`Created site: ${site.name} with ${siteData.staff.length} staff and ${siteData.dls.length} DLs`)
+    if (createdDls.length) {
+      await prisma.dLAssignment.createMany({
+        data: createdDls.map(dlId => ({
+          siteId: site.id,
+          dlId,
+          date: today,
+        })),
+      })
+    }
+
+    console.log(`Created site: ${site.name} with ${siteData.staff.length} staff and ${siteData.dls.length} DLs (assigned for ${today})`)
   }
 }
 

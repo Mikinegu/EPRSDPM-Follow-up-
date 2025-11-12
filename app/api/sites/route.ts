@@ -5,8 +5,18 @@ export async function GET() {
   try {
     const sites = await prisma.site.findMany({
       include: {
-        staff: true,
-        dls: true,
+        staff: {
+          where: { isActive: true },
+          orderBy: {
+            name: 'asc',
+          },
+        },
+        dls: {
+          where: { isActive: true },
+          orderBy: {
+            name: 'asc',
+          },
+        },
       },
       orderBy: {
         name: 'asc',

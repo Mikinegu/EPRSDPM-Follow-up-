@@ -13,9 +13,11 @@ model Site {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  staff          Staff[]
-  dls            DL[]
-  attendanceRecords AttendanceRecord[]
+  staff              Staff[]
+  dls                DL[]
+  attendanceRecords  AttendanceRecord[]
+  staffAssignments   StaffAssignment[]
+  dlAssignments      DLAssignment[]
 }
 
 model Staff {
@@ -24,9 +26,11 @@ model Staff {
   siteId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
 
   site       Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
   attendance StaffAttendance[]
+  assignments StaffAssignment[] @relation("StaffAssignments")
 
   @@index([siteId])
 }
@@ -37,9 +41,11 @@ model DL {
   siteId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
 
   site       Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
   attendance DLAttendance[]
+  assignments DLAssignment[] @relation("DLAssignments")
 
   @@index([siteId])
 }
@@ -85,5 +91,35 @@ model DLAttendance {
 
   @@unique([attendanceRecordId, dlId])
   @@index([attendanceRecordId])
+  @@index([dlId])
+}
+
+model StaffAssignment {
+  id      String   @id @default(cuid())
+  siteId  String
+  staffId String
+  date    String
+  createdAt DateTime @default(now())
+
+  site  Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  staff Staff @relation("StaffAssignments", fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date, staffId])
+  @@index([siteId, date])
+  @@index([staffId])
+}
+
+model DLAssignment {
+  id     String   @id @default(cuid())
+  siteId String
+  dlId   String
+  date   String
+  createdAt DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  dl   DL   @relation("DLAssignments", fields: [dlId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date, dlId])
+  @@index([siteId, date])
   @@index([dlId])
 }
