@@ -1,0 +1,123 @@
+Build a Next.js 14 (App Router) web app called "Entoto Peacock Manpower Follow-Up Sheet" that will be deployed on Vercel.
+
+⚙️ Tech Stack
+
+Next.js 14 (App Router)
+
+Tailwind CSS for modern, responsive UI
+
+TypeScript (optional but preferred)
+
+Use Next.js API routes for backend logic
+
+Use SQLite (via Prisma) or a local JSON file for lightweight data storage
+
+Everything must work seamlessly on Vercel deployment
+
+🧾 Main Page: Attendance Form
+
+The main route / should show the Entoto Peacock Manpower Follow-Up Sheet with the following structure:
+
+1. Date
+
+Automatically filled with today’s date.
+
+Editable if needed.
+
+2. Site Location (Dropdown)
+
+Dropdown with sample sites like:
+
+Entoto Main
+
+Peacock Villa
+
+Entoto Hills
+
+Forest Lodge
+
+When a site is chosen:
+
+Automatically load:
+
+Number of Staff
+
+Number of DLs
+
+Staff list for that site
+
+DL list for that site
+
+(Use mock data for now, e.g., stored in /data/sites.json.)
+
+👥 Staff Attendance
+
+Automatically displays staff names for the selected site.
+
+Each name is a modern button when clicked the background will be green and it should be toggled green for present and normal color for absent
+
+Show total staff count and total present.
+
+🚗 DL Attendance
+
+Same as staff, but for DLs.
+
+Each DL name appears with a Present/Absent toggle.
+
+Show total DL count and total present.
+
+🧮 Submit
+
+On submit:
+
+Store the form in backend (via an API route) as a record containing:
+
+Date
+
+Site
+
+Staff attendance list
+
+DL attendance list
+
+Display a toast or popup success message.
+
+Reset the form after submission.
+
+💾 Data Management Requirements
+
+Create an admin-style page /dashboard with three tabs or sections:
+
+Form List
+
+Displays all submitted forms.
+
+Columns: Date, Site, Total Staff Present/Absent, Total DL Present/Absent.
+
+Staff Attendance List
+
+Person-based view.
+
+Shows each staff member and their attendance history (date + status).
+
+DL Attendance List
+
+Similar to Staff Attendance List but for DLs.
+
+Include:
+
+Filtering by date or site
+
+Optional export as CSV or JSON (if possible)
+
+🎨 Design
+
+Use Tailwind for a clean, modern dashboard look.
+
+Responsive (mobile + desktop)
+
+Minimal colors: white background, soft grays, accent color (green or blue)
+
+Use cards for attendance lists
+
+Smooth transitions when loading data
