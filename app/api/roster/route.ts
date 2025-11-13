@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getSessionCookieName, verifySessionToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 async function requireAdmin() {
   const sessionCookie = cookies().get(getSessionCookieName())?.value
   if (!sessionCookie) return false

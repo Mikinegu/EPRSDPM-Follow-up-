@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getSessionCookieName, verifySessionToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 type MemberRole = 'staff' | 'dl'
 
 const ROLE_DELEGATE = {
@@ -145,11 +147,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 })
     }
 
-    const delegate = ROLE_DELEGATE[role]
-    const updated = await delegate.update({
-      where: { id: memberId },
-      data: { isActive },
-    })
+    let updated
+    if (role === 'staff') {
+      updated = await prisma.staff.update({
+        where: { id: memberId },
+        data: { isActive },
+      })
+    } else {
+      updated = await prisma.dL.update({
+        where: { id: memberId },
+        data: { isActive },
+      })
+    }
 
     return NextResponse.json({ member: updated })
   } catch (error) {
@@ -172,10 +181,15 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Missing memberId or role' }, { status: 400 })
     }
 
-    const delegate = ROLE_DELEGATE[role]
-    await delegate.delete({
-      where: { id: memberId },
-    })
+    if (role === 'staff') {
+      await prisma.staff.delete({
+        where: { id: memberId },
+      })
+    } else {
+      await prisma.dL.delete({
+        where: { id: memberId },
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
