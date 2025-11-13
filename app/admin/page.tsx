@@ -360,6 +360,36 @@ export default function AdminDashboard() {
     }
   }
 
+  const deleteMember = async (memberId: string, role: MemberRole, memberName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${memberName}"? This action cannot be undone and will also delete all their attendance records.`)) {
+      return
+    }
+
+    setMemberError(null)
+    setMemberSuccess(null)
+    setMemberUpdatingId(memberId)
+
+    try {
+      const params = new URLSearchParams({ memberId, role })
+      const response = await fetch(`/api/admin/members?${params.toString()}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error ?? `Failed with status ${response.status}`)
+      }
+
+      setMemberSuccess(`Member "${memberName}" deleted successfully.`)
+      await fetchSites()
+    } catch (error) {
+      console.error('Error deleting member:', error)
+      setMemberError('Failed to delete member.')
+    } finally {
+      setMemberUpdatingId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
@@ -494,18 +524,30 @@ export default function AdminDashboard() {
                           {member.isActive ? 'Active' : 'Inactive'}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleMemberStatus(member.id, 'staff', !member.isActive)}
-                        disabled={memberUpdatingId === member.id}
-                        className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                          member.isActive
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        } ${memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''}`}
-                      >
-                        {member.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleMemberStatus(member.id, 'staff', !member.isActive)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            member.isActive
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          } ${memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {member.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteMember(member.id, 'staff', member.name)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 ${
+                            memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -528,18 +570,30 @@ export default function AdminDashboard() {
                           {member.isActive ? 'Active' : 'Inactive'}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleMemberStatus(member.id, 'dl', !member.isActive)}
-                        disabled={memberUpdatingId === member.id}
-                        className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                          member.isActive
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        } ${memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''}`}
-                      >
-                        {member.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleMemberStatus(member.id, 'dl', !member.isActive)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            member.isActive
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          } ${memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {member.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteMember(member.id, 'dl', member.name)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 ${
+                            memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -100,14 +100,24 @@ export async function POST(request: Request) {
     const created = await prisma.$transaction(async (tx) => {
       const results = []
       for (const member of sanitized) {
-        const delegate = member.role === 'staff' ? tx.staff : tx.dL
-        const createdMember = await delegate.create({
-          data: {
-            name: member.name,
-            siteId: member.siteId,
-            isActive: true,
-          },
-        })
+        let createdMember
+        if (member.role === 'staff') {
+          createdMember = await tx.staff.create({
+            data: {
+              name: member.name,
+              siteId: member.siteId,
+              isActive: true,
+            },
+          })
+        } else {
+          createdMember = await tx.dL.create({
+            data: {
+              name: member.name,
+              siteId: member.siteId,
+              isActive: true,
+            },
+          })
+        }
         results.push(createdMember)
       }
       return results
@@ -145,6 +155,32 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error('Error updating member:', error)
     return NextResponse.json({ error: 'Failed to update member' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const memberId = searchParams.get('memberId')
+    const role = normalizeRole(searchParams.get('role'))
+
+    if (!memberId || !role) {
+      return NextResponse.json({ error: 'Missing memberId or role' }, { status: 400 })
+    }
+
+    const delegate = ROLE_DELEGATE[role]
+    await delegate.delete({
+      where: { id: memberId },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting member:', error)
+    return NextResponse.json({ error: 'Failed to delete member' }, { status: 500 })
   }
 }
 

@@ -11,6 +11,9 @@ export async function GET(request: Request) {
     if (view === 'staff') {
       const staff = await prisma.staff.findMany({
         where: siteFilter ? { siteId: siteFilter } : undefined,
+        orderBy: {
+          name: 'asc',
+        },
         include: {
           site: true,
           attendance: {
@@ -31,6 +34,9 @@ export async function GET(request: Request) {
     } else if (view === 'dl') {
       const dls = await prisma.dL.findMany({
         where: siteFilter ? { siteId: siteFilter } : undefined,
+        orderBy: {
+          name: 'asc',
+        },
         include: {
           site: true,
           attendance: {
@@ -56,8 +62,26 @@ export async function GET(request: Request) {
         },
         include: {
           site: true,
-          staffAttendance: true,
-          dlAttendance: true,
+          staffAttendance: {
+            include: {
+              staff: true,
+            },
+            orderBy: {
+              staff: {
+                name: 'asc',
+              },
+            },
+          },
+          dlAttendance: {
+            include: {
+              dl: true,
+            },
+            orderBy: {
+              dl: {
+                name: 'asc',
+              },
+            },
+          },
         },
         orderBy: {
           date: 'desc',
