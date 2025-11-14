@@ -75,6 +75,12 @@ export default function AdminDashboard() {
   const [memberError, setMemberError] = useState<string | null>(null)
   const [memberSuccess, setMemberSuccess] = useState<string | null>(null)
   const [memberUpdatingId, setMemberUpdatingId] = useState<string | null>(null)
+  const [exportStartDate, setExportStartDate] = useState<string>(
+    () => new Date(new Date().setDate(new Date().getDate() - 29)).toISOString().split('T')[0],
+  )
+  const [exportEndDate, setExportEndDate] = useState<string>(() => new Date().toISOString().split('T')[0])
+  const [exportSiteId, setExportSiteId] = useState('')
+  const [exporting, setExporting] = useState(false)
   const selectedRosterSite = useMemo(
     () => sites.find(site => site.id === rosterSiteId) ?? null,
     [sites, rosterSiteId],
@@ -116,7 +122,10 @@ export default function AdminDashboard() {
     if (!memberSiteId || !sites.some(site => site.id === memberSiteId)) {
       setMemberSiteId(sites[0].id)
     }
-  }, [sites, rosterSiteId, memberSiteId])
+    if (!exportSiteId || !sites.some(site => site.id === exportSiteId)) {
+      setExportSiteId(sites[0].id)
+    }
+  }, [sites, rosterSiteId, memberSiteId, exportSiteId])
 
   useEffect(() => {
     fetchData()
@@ -131,6 +140,56 @@ export default function AdminDashboard() {
 
     void load()
   }, [rosterSiteId, rosterDate, selectedRosterSite])
+
+  const handleExport = async () => {
+    if (!exportSiteId) {
+      alert('Please select a site to export.')
+      return
+    }
+
+    setExporting(true)
+
+    const downloadFile = async (role: MemberRole) => {
+      try {
+        const params = new URLSearchParams({
+          role,
+          siteId: exportSiteId,
+          startDate: exportStartDate,
+          endDate: exportEndDate,
+        })
+        const response = await fetch(`/api/export?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`Failed to download ${role} file`)
+        }
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const contentDisposition = response.headers.get('content-disposition')
+        let filename = `${role}_attendance.xlsx`
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="?(.+)"?/)
+          if (match && match[1]) {
+            filename = match[1]
+          }
+        }
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+      } catch (error) {
+        console.error(`Export error for ${role}:`, error)
+        alert(`Failed to export ${role} data. Please try again.`)
+      }
+    }
+
+    await downloadFile('staff')
+    await new Promise((resolve) => setTimeout(resolve, 500)) // Brief pause between downloads
+    await downloadFile('dl')
+
+    setExporting(false)
+  }
 
   const fetchSites = async () => {
     try {
@@ -425,6 +484,61 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
             <div>
+              <h2 className="text-xl font-semibold text-gray-900">Export Attendance Data</h2>
+              <p className="text-sm text-gray-500">
+                Download attendance records as Excel files for a selected site and date range.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Site</label>
+              <select
+                value={exportSiteId}
+                onChange={(e) => setExportSiteId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {sites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="md:col-span-1 flex items-end justify-end">
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting || !exportSiteId}
+                className="w-full px-5 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {exporting ? 'Exporting...' : 'Export Attendance'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div>
               <h2 className="text-xl font-semibold text-gray-900">Member Management</h2>
               <p className="text-sm text-gray-500">Add or update people for each site and assign their role.</p>
             </div>
@@ -602,157 +716,6 @@ export default function AdminDashboard() {
           ) : (
             <p className="text-sm text-gray-500">Select a site to manage members.</p>
           )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Daily Roster Management</h2>
-              <p className="text-sm text-gray-500">Choose who is expected on site for the selected date.</p>
-            </div>
-            <button
-              type="button"
-              onClick={resetRosterSelections}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-60"
-              disabled={!selectedRosterSite || rosterLoading || rosterSaving}
-            >
-              Reset to All
-            </button>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 mb-4">
-            <div className="min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-              <input
-                type="date"
-                value={rosterDate}
-                onChange={(e) => {
-                  setRosterDate(e.target.value)
-                  setRosterError(null)
-                  setRosterSuccess(null)
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="min-w-[200px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Site</label>
-              <select
-                value={rosterSiteId}
-                onChange={(e) => {
-                  setRosterSiteId(e.target.value)
-                  setRosterError(null)
-                  setRosterSuccess(null)
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {sites.map(site => (
-                  <option key={site.id} value={site.id}>{site.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedRosterSite && rosterSiteId && rosterDate) {
-                    void fetchRoster(rosterSiteId, rosterDate, selectedRosterSite)
-                  }
-                }}
-                disabled={!selectedRosterSite || rosterLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {rosterLoading ? 'Refreshing...' : 'Refresh'}
-              </button>
-            </div>
-          </div>
-
-          {rosterError && (
-            <p className="text-sm text-red-600 mb-2">{rosterError}</p>
-          )}
-          {rosterSuccess && (
-            <p className="text-sm text-green-600 mb-2">{rosterSuccess}</p>
-          )}
-
-          {selectedRosterSite ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">Staff</h3>
-                  <span className="text-sm text-gray-600">
-                    Selected: {rosterStaffSelectedCount} / {rosterActiveStaff.length}
-                  </span>
-                </div>
-                {rosterLoading && rosterActiveStaff.length > 0 ? (
-                  <p className="text-sm text-gray-500">Loading roster...</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {rosterActiveStaff.map(staff => (
-                      <button
-                        key={staff.id}
-                        type="button"
-                        onClick={() => toggleRosterStaff(staff.id)}
-                        className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                          rosterStaffSelection[staff.id]
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
-                        }`}
-                      >
-                        {staff.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {rosterActiveStaff.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-2">No staff members configured for this site.</p>
-                )}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">DLs</h3>
-                  <span className="text-sm text-gray-600">
-                    Selected: {rosterDlSelectedCount} / {rosterActiveDls.length}
-                  </span>
-                </div>
-                {rosterLoading && rosterActiveDls.length > 0 ? (
-                  <p className="text-sm text-gray-500">Loading roster...</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {rosterActiveDls.map(dl => (
-                      <button
-                        key={dl.id}
-                        type="button"
-                        onClick={() => toggleRosterDl(dl.id)}
-                        className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                          rosterDlSelection[dl.id]
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
-                        }`}
-                      >
-                        {dl.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {rosterActiveDls.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-2">No DL members configured for this site.</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">Select a site to manage the roster.</p>
-          )}
-
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              onClick={handleRosterSave}
-              disabled={!selectedRosterSite || rosterSaving || rosterLoading}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {rosterSaving ? 'Saving...' : 'Save Roster'}
-            </button>
-          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
