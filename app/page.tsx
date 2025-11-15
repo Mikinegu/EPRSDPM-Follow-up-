@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface Staff {
   id: string
@@ -205,8 +206,19 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Entoto Peacock Manpower Follow-Up Sheet</h1>
+        <div className="mb-6 text-center">
+          <Image
+            src="/logo.jpg"
+            alt="Entoto Peacock Logo"
+            width={650}
+            height={125}
+            priority
+            className="mx-auto"
+          />
+          <h1 className="mt-4 text-3xl font-bold text-gray-900">
+          Entoto peacock river side development project
+          </h1>
+          <h1 className="mt-4 text-3xl font-bold text-gray-900"> manpower follow up sheet</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
@@ -262,21 +274,21 @@ export default function Home() {
                   </span>
                 </div>
                 {availableStaff.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {availableStaff.map(staff => (
-                      <button
+                  <div className="space-y-3">
+                    {availableStaff.map((staff) => (
+                      <label
                         key={staff.id}
-                        type="button"
-                        onClick={() => toggleStaffAttendance(staff.id)}
-                        disabled={rosterLoading}
-                        className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                          staffAttendance[staff.id]
-                            ? 'bg-green-500 text-white hover:bg-green-600'
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
-                        } ${rosterLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
                       >
-                        {staff.name}
-                      </button>
+                        <span className="font-medium text-gray-800">{staff.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={staffAttendance[staff.id] || false}
+                          onChange={() => toggleStaffAttendance(staff.id)}
+                          disabled={rosterLoading}
+                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                        />
+                      </label>
                     ))}
                   </div>
                 ) : (
@@ -292,21 +304,21 @@ export default function Home() {
                   </span>
                 </div>
                 {availableDls.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {availableDls.map(dl => (
-                      <button
+                  <div className="space-y-3">
+                    {availableDls.map((dl) => (
+                      <label
                         key={dl.id}
-                        type="button"
-                        onClick={() => toggleDlAttendance(dl.id)}
-                        disabled={rosterLoading}
-                        className={`px-4 py-3 rounded-lg font-medium transition-colors ${
-                          dlAttendance[dl.id]
-                            ? 'bg-green-500 text-white hover:bg-green-600'
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
-                        } ${rosterLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
                       >
-                        {dl.name}
-                      </button>
+                        <span className="font-medium text-gray-800">{dl.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={dlAttendance[dl.id] || false}
+                          onChange={() => toggleDlAttendance(dl.id)}
+                          disabled={rosterLoading}
+                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                        />
+                      </label>
                     ))}
                   </div>
                 ) : (

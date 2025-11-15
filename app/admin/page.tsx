@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 type MemberRole = 'staff' | 'dl'
 
@@ -452,6 +453,16 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
+        <div className="mb-6 text-center">
+          <Image
+            src="/logo.jpg"
+            alt="Entoto Peacock Logo"
+            width={550}
+            height={110}
+            priority
+            className="mx-auto"
+          />
+        </div>
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
           <div className="flex items-center gap-3">

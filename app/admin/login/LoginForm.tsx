@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -44,6 +45,16 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <Image
+            src="/logo.jpg"
+            alt="Entoto Peacock Logo"
+            width={450}
+            height={90}
+            priority
+            className="mx-auto"
+          />
+        </div>
         <div className="bg-white shadow-md rounded-lg p-8">
           <h1 className="text-2xl font-bold text-center text-gray-900 mb-6">Admin Login</h1>
           <form onSubmit={handleSubmit} className="space-y-4">
