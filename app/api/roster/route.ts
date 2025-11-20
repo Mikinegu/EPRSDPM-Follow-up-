@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getSessionCookieName, verifySessionToken } from '@/lib/auth'
@@ -12,12 +12,8 @@ async function requireAdmin() {
   return verifySessionToken(sessionCookie)
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    if (!(await requireAdmin())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
     const date = searchParams.get('date')
@@ -26,23 +22,28 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing siteId or date' }, { status: 400 })
     }
 
-    const [staffAssignments, dlAssignments] = await Promise.all([
-      prisma.staffAssignment.findMany({
-        where: { siteId, date },
-        select: { staffId: true },
-      }),
-      prisma.dLAssignment.findMany({
-        where: { siteId, date },
-        select: { dlId: true },
-      }),
-    ])
-
-    return NextResponse.json({
-      staffIds: staffAssignments.map(item => item.staffId),
-      dlIds: dlAssignments.map(item => item.dlId),
+    const staffAssignments = await prisma.staffAssignment.findMany({
+      where: { siteId, date },
+      select: { staffId: true },
     })
+
+    const dlAssignments = await prisma.dLAssignment.findMany({
+      where: { siteId, date },
+      select: { dlId: true },
+    })
+
+    const skilledAssignments = await prisma.skilledAssignment.findMany({
+      where: { siteId, date },
+      select: { skilledId: true },
+    })
+
+    const staffIds = staffAssignments.map(a => a.staffId)
+    const dlIds = dlAssignments.map(a => a.dlId)
+    const skilledIds = skilledAssignments.map(a => a.skilledId)
+
+    return NextResponse.json({ staffIds, dlIds, skilledIds })
   } catch (error) {
-    console.error('Error fetching roster assignments:', error)
+    console.error('Error fetching roster:', error)
     return NextResponse.json({ error: 'Failed to fetch roster assignments' }, { status: 500 })
   }
 }
@@ -54,11 +55,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { siteId, date, staffIds, dlIds } = body as {
+    const { siteId, date, staffIds, dlIds, skilledIds } = body as {
       siteId?: string
       date?: string
       staffIds?: string[]
       dlIds?: string[]
+      skilledIds?: string[]
     }
 
     if (!siteId || !date) {
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
       include: {
         staff: { select: { id: true } },
         dls: { select: { id: true } },
+        skilled: { select: { id: true } },
       },
     })
 
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
 
     const validStaffIds = new Set(site.staff.map(member => member.id))
     const validDlIds = new Set(site.dls.map(member => member.id))
+    const validSkilledIds = new Set(site.skilled.map(member => member.id))
 
     const filteredStaffIds = Array.isArray(staffIds)
       ? staffIds.filter(id => validStaffIds.has(id))
@@ -87,10 +91,15 @@ export async function POST(request: Request) {
     const filteredDlIds = Array.isArray(dlIds)
       ? dlIds.filter(id => validDlIds.has(id))
       : []
+    
+    const filteredSkilledIds = Array.isArray(skilledIds)
+      ? skilledIds.filter(id => validSkilledIds.has(id))
+      : []
 
     await prisma.$transaction(async (tx) => {
       await tx.staffAssignment.deleteMany({ where: { siteId, date } })
       await tx.dLAssignment.deleteMany({ where: { siteId, date } })
+      await tx.skilledAssignment.deleteMany({ where: { siteId, date } })
 
       if (filteredStaffIds.length) {
         await tx.staffAssignment.createMany({
@@ -111,11 +120,22 @@ export async function POST(request: Request) {
           })),
         })
       }
+
+      if (filteredSkilledIds.length) {
+        await tx.skilledAssignment.createMany({
+          data: filteredSkilledIds.map(id => ({
+            siteId,
+            skilledId: id,
+            date,
+          })),
+        })
+      }
     })
 
     return NextResponse.json({
       staffIds: filteredStaffIds,
       dlIds: filteredDlIds,
+      skilledIds: filteredSkilledIds,
     })
   } catch (error) {
     console.error('Error saving roster assignments:', error)

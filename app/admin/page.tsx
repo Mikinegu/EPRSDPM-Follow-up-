@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-type MemberRole = 'staff' | 'dl'
+type MemberRole = 'staff' | 'dl' | 'skilled'
 
 interface SiteOption {
   id: string
   name: string
   staff: Array<{ id: string; name: string; isActive: boolean }>
   dls: Array<{ id: string; name: string; isActive: boolean }>
+  skilled: Array<{ id: string; name: string; isActive: boolean }>
 }
 
 interface AttendanceRecord {
@@ -22,6 +23,7 @@ interface AttendanceRecord {
   }
   staffAttendance: Array<{ present: boolean }>
   dlAttendance: Array<{ present: boolean }>
+  skilledAttendance: Array<{ present: boolean }>
 }
 
 interface StaffMember {
@@ -52,11 +54,26 @@ interface DLMember {
   }>
 }
 
+interface SkilledMember {
+  id: string
+  name: string
+  site: {
+    name: string
+  }
+  attendance: Array<{
+    present: boolean
+    attendanceRecord: {
+      date: string
+    }
+  }>
+}
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'forms' | 'staff' | 'dl'>('forms')
+  const [activeTab, setActiveTab] = useState<'forms' | 'staff' | 'dl' | 'skilled'>('forms')
   const [formRecords, setFormRecords] = useState<AttendanceRecord[]>([])
   const [staffData, setStaffData] = useState<StaffMember[]>([])
   const [dlData, setDlData] = useState<DLMember[]>([])
+  const [skilledData, setSkilledData] = useState<SkilledMember[]>([])
   const [dateFilter, setDateFilter] = useState('')
   const [siteFilter, setSiteFilter] = useState('')
   const [sites, setSites] = useState<SiteOption[]>([])
@@ -65,6 +82,7 @@ export default function AdminDashboard() {
   const [rosterSiteId, setRosterSiteId] = useState('')
   const [rosterStaffSelection, setRosterStaffSelection] = useState<Record<string, boolean>>({})
   const [rosterDlSelection, setRosterDlSelection] = useState<Record<string, boolean>>({})
+  const [rosterSkilledSelection, setRosterSkilledSelection] = useState<Record<string, boolean>>({})
   const [rosterLoading, setRosterLoading] = useState(false)
   const [rosterSaving, setRosterSaving] = useState(false)
   const [rosterError, setRosterError] = useState<string | null>(null)
@@ -98,6 +116,10 @@ export default function AdminDashboard() {
     () => (selectedRosterSite ? selectedRosterSite.dls.filter(member => member.isActive) : []),
     [selectedRosterSite],
   )
+  const rosterActiveSkilled = useMemo(
+    () => (selectedRosterSite ? selectedRosterSite.skilled.filter(member => member.isActive) : []),
+    [selectedRosterSite],
+  )
   const rosterStaffSelectedCount = useMemo(() => {
     return rosterActiveStaff.reduce(
       (count, staff) => count + (rosterStaffSelection[staff.id] ? 1 : 0),
@@ -110,6 +132,12 @@ export default function AdminDashboard() {
       0,
     )
   }, [rosterActiveDls, rosterDlSelection])
+  const rosterSkilledSelectedCount = useMemo(() => {
+    return rosterActiveSkilled.reduce(
+      (count, skilled) => count + (rosterSkilledSelection[skilled.id] ? 1 : 0),
+      0,
+    )
+  }, [rosterActiveSkilled, rosterSkilledSelection])
   useEffect(() => {
     fetchSites()
   }, [])
@@ -188,6 +216,8 @@ export default function AdminDashboard() {
     await downloadFile('staff')
     await new Promise((resolve) => setTimeout(resolve, 500)) // Brief pause between downloads
     await downloadFile('dl')
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await downloadFile('skilled')
 
     setExporting(false)
   }
@@ -223,6 +253,11 @@ export default function AdminDashboard() {
         const response = await fetch(`/api/dashboard?${params}`)
         const data = await response.json()
         setDlData(data)
+      } else if (activeTab === 'skilled') {
+        params.append('view', 'skilled')
+        const response = await fetch(`/api/dashboard?${params}`)
+        const data = await response.json()
+        setSkilledData(data)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -258,19 +293,23 @@ export default function AdminDashboard() {
         throw new Error(`Failed to load roster: ${response.status}`)
       }
 
-      const data: { staffIds?: string[]; dlIds?: string[] } = await response.json()
+      const data: { staffIds?: string[]; dlIds?: string[]; skilledIds?: string[] } = await response.json()
       const activeStaff = (site.staff ?? []).filter(member => member.isActive)
       const activeDls = (site.dls ?? []).filter(member => member.isActive)
+      const activeSkilled = (site.skilled ?? []).filter(member => member.isActive)
 
       setRosterStaffSelection(buildSelectionMap(activeStaff, data.staffIds ?? null))
       setRosterDlSelection(buildSelectionMap(activeDls, data.dlIds ?? null))
+      setRosterSkilledSelection(buildSelectionMap(activeSkilled, data.skilledIds ?? null))
     } catch (error) {
       console.error('Error fetching roster:', error)
       setRosterError('Failed to load roster; defaulting to all members.')
       const activeStaff = (site.staff ?? []).filter(member => member.isActive)
       const activeDls = (site.dls ?? []).filter(member => member.isActive)
+      const activeSkilled = (site.skilled ?? []).filter(member => member.isActive)
       setRosterStaffSelection(buildSelectionMap(activeStaff, null))
       setRosterDlSelection(buildSelectionMap(activeDls, null))
+      setRosterSkilledSelection(buildSelectionMap(activeSkilled, null))
     } finally {
       setRosterLoading(false)
     }
@@ -290,9 +329,17 @@ export default function AdminDashboard() {
     }))
   }
 
+  const toggleRosterSkilled = (skilledId: string) => {
+    setRosterSkilledSelection(prev => ({
+      ...prev,
+      [skilledId]: !prev[skilledId],
+    }))
+  }
+
   const resetRosterSelections = () => {
     setRosterStaffSelection(buildSelectionMap(rosterActiveStaff, null))
     setRosterDlSelection(buildSelectionMap(rosterActiveDls, null))
+    setRosterSkilledSelection(buildSelectionMap(rosterActiveSkilled, null))
     setRosterError(null)
     setRosterSuccess(null)
   }
@@ -313,6 +360,10 @@ export default function AdminDashboard() {
         .filter(([, present]) => present)
         .map(([id]) => id)
 
+      const skilledIds = Object.entries(rosterSkilledSelection)
+        .filter(([, present]) => present)
+        .map(([id]) => id)
+
       const response = await fetch('/api/roster', {
         method: 'POST',
         headers: {
@@ -323,6 +374,7 @@ export default function AdminDashboard() {
           date: rosterDate,
           staffIds,
           dlIds,
+          skilledIds,
         }),
       })
 
@@ -376,7 +428,7 @@ export default function AdminDashboard() {
         throw new Error(data.error ?? `Failed with status ${response.status}`)
       }
 
-      setMemberSuccess(`Added ${names.length} ${memberRole === 'staff' ? 'staff' : 'DL'} member(s).`)
+      setMemberSuccess(`Added ${names.length} ${memberRole} member(s).`)
       setMemberNamesInput('')
       await fetchSites()
     } catch (error) {
@@ -594,6 +646,17 @@ export default function AdminDashboard() {
                   />
                   DL
                 </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="memberRole"
+                    value="skilled"
+                    checked={memberRole === 'skilled'}
+                    onChange={() => setMemberRole('skilled')}
+                    className="text-blue-600 focus:ring-blue-500"
+                  />
+                  Skilled
+                </label>
               </div>
             </div>
 
@@ -631,7 +694,7 @@ export default function AdminDashboard() {
           )}
 
           {selectedMemberSite ? (
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Staff</h3>
                 <div className="space-y-3">
@@ -723,6 +786,51 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Skilled</h3>
+                <div className="space-y-3">
+                  {selectedMemberSite.skilled.length === 0 && (
+                    <p className="text-sm text-gray-500">No skilled members yet.</p>
+                  )}
+                  {selectedMemberSite.skilled.map(member => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                        <p className={`text-xs font-medium ${member.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                          {member.isActive ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleMemberStatus(member.id, 'skilled', !member.isActive)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            member.isActive
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          } ${memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {member.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteMember(member.id, 'skilled', member.name)}
+                          disabled={memberUpdatingId === member.id}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 ${
+                            memberUpdatingId === member.id ? 'opacity-70 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-gray-500">Select a site to manage members.</p>
@@ -798,6 +906,16 @@ export default function AdminDashboard() {
               >
                 DL Attendance
               </button>
+              <button
+                onClick={() => setActiveTab('skilled')}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeTab === 'skilled'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Skilled Attendance
+              </button>
             </nav>
           </div>
         </div>
@@ -818,14 +936,17 @@ export default function AdminDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Present</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DL Present</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skilled Present</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {formRecords.map((record) => {
-                      const staffPresent = record.staffAttendance.filter(a => a.present).length
-                      const staffTotal = record.staffAttendance.length
-                      const dlPresent = record.dlAttendance.filter(a => a.present).length
-                      const dlTotal = record.dlAttendance.length
+                      const staffPresent = (record.staffAttendance || []).filter(a => a.present).length
+                      const staffTotal = (record.staffAttendance || []).length
+                      const dlPresent = (record.dlAttendance || []).filter(a => a.present).length
+                      const dlTotal = (record.dlAttendance || []).length
+                      const skilledPresent = (record.skilledAttendance || []).filter(a => a.present).length
+                      const skilledTotal = (record.skilledAttendance || []).length
 
                       return (
                         <tr key={record.id} className="hover:bg-gray-50">
@@ -836,6 +957,9 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <span className="text-green-600 font-medium">{dlPresent}</span> / {dlTotal}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className="text-green-600 font-medium">{skilledPresent}</span> / {skilledTotal}
                           </td>
                         </tr>
                       )
@@ -935,6 +1059,51 @@ export default function AdminDashboard() {
                 {dlData.length === 0 && (
                   <div className="text-center py-12 text-gray-500">
                     No DL records found
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'skilled' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skilled Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendance History</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {skilledData.map((skilled) => (
+                      <tr key={skilled.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{skilled.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{skilled.site.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {skilled.attendance.length === 0 ? (
+                            <span className="text-gray-500">No records</span>
+                          ) : (
+                            <div className="space-y-1">
+                              {skilled.attendance.slice(0, 5).map((record, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <span className="text-gray-600">{record.attendanceRecord.date}:</span>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    record.present ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {record.present ? 'Present' : 'Absent'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {skilledData.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    No Skilled records found
                   </div>
                 )}
               </div>

@@ -1,28 +1,31 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const view = searchParams.get('view')
+  const date = searchParams.get('date')
+  const site = searchParams.get('site')
+
+  const siteClause = site ? { site: { id: site } } : {}
+  const dateClause = date ? { date: date } : {}
+  const whereClause = { ...siteClause, ...dateClause }
+
   try {
-    const { searchParams } = new URL(request.url)
-    const view = searchParams.get('view')
-    const siteFilter = searchParams.get('site')
-    const dateFilter = searchParams.get('date')
-
     if (view === 'staff') {
-      const staff = await prisma.staff.findMany({
-        where: siteFilter ? { siteId: siteFilter } : undefined,
-        orderBy: {
-          name: 'asc',
-        },
+      const data = await prisma.staff.findMany({
+        where: site ? { siteId: site } : {},
         include: {
-          site: true,
+          site: { select: { name: true } },
           attendance: {
+            where: date ? { attendanceRecord: { date } } : {},
             include: {
-              attendanceRecord: true,
+              attendanceRecord: {
+                select: { date: true },
+              },
             },
-            where: dateFilter ? { attendanceRecord: { date: dateFilter } } : undefined,
             orderBy: {
               attendanceRecord: {
                 date: 'desc',
@@ -30,70 +33,92 @@ export async function GET(request: Request) {
             },
           },
         },
+        orderBy: { name: 'asc' },
       })
-
-      return NextResponse.json(staff)
-    } else if (view === 'dl') {
-      const dls = await prisma.dL.findMany({
-        where: siteFilter ? { siteId: siteFilter } : undefined,
-        orderBy: {
-          name: 'asc',
-        },
-        include: {
-          site: true,
-          attendance: {
-            include: {
-              attendanceRecord: true,
-            },
-            where: dateFilter ? { attendanceRecord: { date: dateFilter } } : undefined,
-            orderBy: {
-              attendanceRecord: {
-                date: 'desc',
-              },
-            },
-          },
-        },
-      })
-
-      return NextResponse.json(dls)
-    } else {
-      const records = await prisma.attendanceRecord.findMany({
-        where: {
-          ...(siteFilter && { siteId: siteFilter }),
-          ...(dateFilter && { date: dateFilter }),
-        },
-        include: {
-          site: true,
-          staffAttendance: {
-            include: {
-              staff: true,
-            },
-            orderBy: {
-              staff: {
-                name: 'asc',
-              },
-            },
-          },
-          dlAttendance: {
-            include: {
-              dl: true,
-            },
-            orderBy: {
-              dl: {
-                name: 'asc',
-              },
-            },
-          },
-        },
-        orderBy: {
-          date: 'desc',
-        },
-      })
-
-      return NextResponse.json(records)
+      return NextResponse.json(data)
     }
+
+    if (view === 'dl') {
+      const data = await prisma.dL.findMany({
+        where: site ? { siteId: site } : {},
+        include: {
+          site: { select: { name: true } },
+          attendance: {
+            where: date ? { attendanceRecord: { date } } : {},
+            include: {
+              attendanceRecord: {
+                select: { date: true },
+              },
+            },
+            orderBy: {
+              attendanceRecord: {
+                date: 'desc',
+              },
+            },
+          },
+        },
+        orderBy: { name: 'asc' },
+      })
+      return NextResponse.json(data)
+    }
+    
+    if (view === 'skilled') {
+      const data = await prisma.skilled.findMany({
+        where: site ? { siteId: site } : {},
+        include: {
+          site: { select: { name: true } },
+          attendance: {
+            where: date ? { attendanceRecord: { date } } : {},
+            include: {
+              attendanceRecord: {
+                select: { date: true },
+              },
+            },
+            orderBy: {
+              attendanceRecord: {
+                date: 'desc',
+              },
+            },
+          },
+        },
+        orderBy: { name: 'asc' },
+      })
+      return NextResponse.json(data)
+    }
+
+    const attendanceRecords = await prisma.attendanceRecord.findMany({
+      where: whereClause,
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        staffAttendance: {
+          select: {
+            present: true,
+          },
+        },
+        dlAttendance: {
+          select: {
+            present: true,
+          },
+        },
+        skilledAttendance: {
+          select: {
+            present: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    })
+    return NextResponse.json(attendanceRecords)
   } catch (error) {
     console.error('Error fetching dashboard data:', error)
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 })
   }
 }
+

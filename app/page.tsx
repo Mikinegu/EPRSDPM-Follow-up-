@@ -4,12 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
-interface Staff {
-  id: string
-  name: string
-}
-
-interface DL {
+interface Member {
   id: string
   name: string
 }
@@ -17,8 +12,9 @@ interface DL {
 interface Site {
   id: string
   name: string
-  staff: Staff[]
-  dls: DL[]
+  staff: Member[]
+  dls: Member[]
+  skilled: Member[]
 }
 
 export default function Home() {
@@ -27,9 +23,11 @@ export default function Home() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null)
   const [staffAttendance, setStaffAttendance] = useState<Record<string, boolean>>({})
   const [dlAttendance, setDlAttendance] = useState<Record<string, boolean>>({})
+  const [skilledAttendance, setSkilledAttendance] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(false)
-  const [availableStaff, setAvailableStaff] = useState<Staff[]>([])
-  const [availableDls, setAvailableDls] = useState<DL[]>([])
+  const [availableStaff, setAvailableStaff] = useState<Member[]>([])
+  const [availableDls, setAvailableDls] = useState<Member[]>([])
+  const [availableSkilled, setAvailableSkilled] = useState<Member[]>([])
   const [rosterLoading, setRosterLoading] = useState(false)
   const [rosterNotice, setRosterNotice] = useState<string | null>(null)
 
@@ -63,11 +61,12 @@ export default function Home() {
         throw new Error(`Roster fetch failed with status ${response.status}`)
       }
 
-      const data: { staffIds?: string[]; dlIds?: string[] } = await response.json()
+      const data: { staffIds?: string[]; dlIds?: string[]; skilledIds?: string[] } = await response.json()
 
       const staffIds = Array.isArray(data.staffIds) ? data.staffIds : []
       const dlIds = Array.isArray(data.dlIds) ? data.dlIds : []
-      const hasAssignments = staffIds.length > 0 || dlIds.length > 0
+      const skilledIds = Array.isArray(data.skilledIds) ? data.skilledIds : []
+      const hasAssignments = staffIds.length > 0 || dlIds.length > 0 || skilledIds.length > 0
 
       const nextStaff = hasAssignments
         ? site.staff.filter(member => staffIds.includes(member.id))
@@ -75,9 +74,13 @@ export default function Home() {
       const nextDls = hasAssignments
         ? site.dls.filter(member => dlIds.includes(member.id))
         : site.dls
+      const nextSkilled = hasAssignments
+        ? site.skilled.filter(member => skilledIds.includes(member.id))
+        : site.skilled
 
       setAvailableStaff(nextStaff)
       setAvailableDls(nextDls)
+      setAvailableSkilled(nextSkilled)
       setStaffAttendance(() => {
         const attendance: Record<string, boolean> = {}
         nextStaff.forEach(member => {
@@ -88,6 +91,13 @@ export default function Home() {
       setDlAttendance(() => {
         const attendance: Record<string, boolean> = {}
         nextDls.forEach(member => {
+          attendance[member.id] = false
+        })
+        return attendance
+      })
+      setSkilledAttendance(() => {
+        const attendance: Record<string, boolean> = {}
+        nextSkilled.forEach(member => {
           attendance[member.id] = false
         })
         return attendance
@@ -103,6 +113,7 @@ export default function Home() {
       setRosterNotice('Unable to load roster; showing all members.')
       setAvailableStaff(site.staff)
       setAvailableDls(site.dls)
+      setAvailableSkilled(site.skilled)
       setStaffAttendance(() => {
         const attendance: Record<string, boolean> = {}
         site.staff.forEach(member => {
@@ -117,6 +128,13 @@ export default function Home() {
         })
         return attendance
       })
+      setSkilledAttendance(() => {
+        const attendance: Record<string, boolean> = {}
+        site.skilled.forEach(member => {
+          attendance[member.id] = false
+        })
+        return attendance
+      })
     } finally {
       setRosterLoading(false)
     }
@@ -127,14 +145,17 @@ export default function Home() {
     setSelectedSite(site || null)
     setStaffAttendance({})
     setDlAttendance({})
+    setSkilledAttendance({})
     if (site && date) {
       setAvailableStaff(site.staff)
       setAvailableDls(site.dls)
+      setAvailableSkilled(site.skilled)
       setRosterNotice(null)
       void loadRoster(site, date)
     } else {
       setAvailableStaff([])
       setAvailableDls([])
+      setAvailableSkilled([])
       setRosterNotice(null)
     }
   }
@@ -150,6 +171,13 @@ export default function Home() {
     setDlAttendance(prev => ({
       ...prev,
       [dlId]: !prev[dlId]
+    }))
+  }
+
+  const toggleSkilledAttendance = (skilledId: string) => {
+    setSkilledAttendance(prev => ({
+      ...prev,
+      [skilledId]: !prev[skilledId]
     }))
   }
 
@@ -180,6 +208,10 @@ export default function Home() {
             dlId: dl.id,
             present: dlAttendance[dl.id] || false,
           })),
+          skilledAttendance: availableSkilled.map(skilled => ({
+            skilledId: skilled.id,
+            present: skilledAttendance[skilled.id] || false,
+          })),
         }),
       })
 
@@ -189,8 +221,10 @@ export default function Home() {
       setSelectedSite(null)
       setStaffAttendance({})
       setDlAttendance({})
+      setSkilledAttendance({})
       setAvailableStaff([])
       setAvailableDls([])
+      setAvailableSkilled([])
       setRosterNotice(null)
     } catch (error) {
       console.error('Error submitting attendance:', error)
@@ -202,6 +236,7 @@ export default function Home() {
 
   const staffPresentCount = availableStaff.filter(staff => staffAttendance[staff.id]).length
   const dlPresentCount = availableDls.filter(dl => dlAttendance[dl.id]).length
+  const skilledPresentCount = availableSkilled.filter(skilled => skilledAttendance[skilled.id]).length
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -323,6 +358,36 @@ export default function Home() {
                   </div>
                 ) : (
                   <p className="text-sm text-gray-600">No DLs expected for this date.</p>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Skilled Attendance</h2>
+                  <span className="text-sm text-gray-600">
+                    Present: {skilledPresentCount} / {availableSkilled.length}
+                  </span>
+                </div>
+                {availableSkilled.length > 0 ? (
+                  <div className="space-y-3">
+                    {availableSkilled.map((skilled) => (
+                      <label
+                        key={skilled.id}
+                        className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
+                      >
+                        <span className="font-medium text-gray-800">{skilled.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={skilledAttendance[skilled.id] || false}
+                          onChange={() => toggleSkilledAttendance(skilled.id)}
+                          disabled={rosterLoading}
+                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No skilled workers expected for this date.</p>
                 )}
               </div>
 

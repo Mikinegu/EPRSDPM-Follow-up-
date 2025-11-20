@@ -1,19 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getSessionCookieName, verifySessionToken } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-type MemberRole = 'staff' | 'dl'
+type MemberRole = 'staff' | 'dl' | 'skilled'
 
 const ROLE_DELEGATE = {
   staff: prisma.staff,
   dl: prisma.dL,
+  skilled: prisma.skilled,
 }
 
 function normalizeRole(role: unknown): MemberRole | null {
-  if (role === 'staff' || role === 'dl') {
+  if (role === 'staff' || role === 'dl' || role === 'skilled') {
     return role
   }
   return null
@@ -26,40 +27,23 @@ async function requireAdmin() {
   return verifySessionToken(sessionCookie)
 }
 
-export async function GET(request: Request) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const includeInactive = searchParams.get('includeInactive') === 'true'
 
   try {
-    const { searchParams } = new URL(request.url)
-    const siteId = searchParams.get('siteId') ?? undefined
-    const includeInactive = searchParams.get('includeInactive') === 'true'
-
+    const whereClause = includeInactive ? {} : { isActive: true }
     const sites = await prisma.site.findMany({
-      where: siteId ? { id: siteId } : undefined,
+      include: {
+        staff: { where: whereClause },
+        dls: { where: whereClause },
+        skilled: { where: whereClause },
+      },
       orderBy: {
         name: 'asc',
       },
-      include: {
-        staff: {
-          where: includeInactive ? undefined : { isActive: true },
-          orderBy: {
-            name: 'asc',
-          },
-        },
-        dls: {
-          where: includeInactive ? undefined : { isActive: true },
-          orderBy: {
-            name: 'asc',
-          },
-        },
-      },
     })
-
-    return NextResponse.json({
-      sites,
-    })
+    return NextResponse.json({ sites })
   } catch (error) {
     console.error('Error fetching members:', error)
     return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 })
@@ -111,8 +95,16 @@ export async function POST(request: Request) {
               isActive: true,
             },
           })
-        } else {
+        } else if (member.role === 'dl') {
           createdMember = await tx.dL.create({
+            data: {
+              name: member.name,
+              siteId: member.siteId,
+              isActive: true,
+            },
+          })
+        } else if (member.role === 'skilled') {
+          createdMember = await tx.skilled.create({
             data: {
               name: member.name,
               siteId: member.siteId,
@@ -153,8 +145,13 @@ export async function PATCH(request: Request) {
         where: { id: memberId },
         data: { isActive },
       })
-    } else {
+    } else if (role === 'dl') {
       updated = await prisma.dL.update({
+        where: { id: memberId },
+        data: { isActive },
+      })
+    } else if (role === 'skilled') {
+      updated = await prisma.skilled.update({
         where: { id: memberId },
         data: { isActive },
       })
@@ -185,8 +182,12 @@ export async function DELETE(request: Request) {
       await prisma.staff.delete({
         where: { id: memberId },
       })
-    } else {
+    } else if (role === 'dl') {
       await prisma.dL.delete({
+        where: { id: memberId },
+      })
+    } else if (role === 'skilled') {
+      await prisma.skilled.delete({
         where: { id: memberId },
       })
     }

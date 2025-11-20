@@ -15,9 +15,11 @@ model Site {
 
   staff              Staff[]
   dls                DL[]
+  skilled            Skilled[]
   attendanceRecords  AttendanceRecord[]
   staffAssignments   StaffAssignment[]
   dlAssignments      DLAssignment[]
+  skilledAssignments SkilledAssignment[]
 }
 
 model Staff {
@@ -28,9 +30,24 @@ model Staff {
   updatedAt DateTime @updatedAt
   isActive  Boolean  @default(true)
 
-  site       Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  attendance StaffAttendance[]
-  assignments StaffAssignment[] @relation("StaffAssignments")
+  site        Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance  StaffAttendance[]
+  assignments StaffAssignment[] @relation("NewStaffAssignments")
+
+  @@index([siteId])
+}
+
+model Skilled {
+  id        String   @id @default(cuid())
+  name      String
+  siteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+
+  site        Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance  SkilledAttendance[]
+  assignments SkilledAssignment[] @relation("SkilledAssignments")
 
   @@index([siteId])
 }
@@ -59,7 +76,9 @@ model AttendanceRecord {
   site            Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
   staffAttendance StaffAttendance[]
   dlAttendance    DLAttendance[]
+  skilledAttendance SkilledAttendance[]
 
+  @@unique([date, siteId])
   @@index([siteId])
   @@index([date])
 }
@@ -79,6 +98,21 @@ model StaffAttendance {
   @@index([staffId])
 }
 
+model SkilledAttendance {
+  id                 String   @id @default(cuid())
+  attendanceRecordId String
+  skilledId          String
+  present            Boolean
+  createdAt          DateTime @default(now())
+
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  skilled          Skilled          @relation(fields: [skilledId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceRecordId, skilledId])
+  @@index([attendanceRecordId])
+  @@index([skilledId])
+}
+
 model DLAttendance {
   id                 String   @id @default(cuid())
   attendanceRecordId String
@@ -95,18 +129,33 @@ model DLAttendance {
 }
 
 model StaffAssignment {
-  id      String   @id @default(cuid())
-  siteId  String
-  staffId String
-  date    String
+  id        String   @id @default(cuid())
+  siteId    String
+  staffId   String
+  date      String
   createdAt DateTime @default(now())
 
   site  Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  staff Staff @relation("StaffAssignments", fields: [staffId], references: [id], onDelete: Cascade)
+  staff Staff @relation("NewStaffAssignments", fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([siteId, date, staffId])
   @@index([siteId, date])
   @@index([staffId])
+}
+
+model SkilledAssignment {
+  id        String   @id @default(cuid())
+  siteId    String
+  skilledId String
+  date      String
+  createdAt DateTime @default(now())
+
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  skilled Skilled @relation("SkilledAssignments", fields: [skilledId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date, skilledId])
+  @@index([siteId, date])
+  @@index([skilledId])
 }
 
 model DLAssignment {
