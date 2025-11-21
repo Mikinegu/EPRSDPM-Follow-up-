@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
 
-    if (role !== 'staff' && role !== 'dl') {
+    if (role !== 'staff' && role !== 'dl' && role !== 'skilled') {
       return NextResponse.json({ error: 'Invalid role specified' }, { status: 400 })
     }
 
@@ -91,10 +91,16 @@ export async function GET(request: Request) {
             staff: { siteId },
             attendanceRecord: { date: { gte: formatDate(startDate), lte: formatDate(endDate) } },
           },
-          include: { attendanceRecord: true },
+          include: {
+            attendanceRecord: {
+              select: {
+                date: true,
+              },
+            },
+          },
         }),
       ])
-    } else {
+    } else if (role === 'dl') {
       ;[members, assignments, attendances] = await Promise.all([
         prisma.dL.findMany({
           where: { siteId },
@@ -112,28 +118,73 @@ export async function GET(request: Request) {
             dl: { siteId },
             attendanceRecord: { date: { gte: formatDate(startDate), lte: formatDate(endDate) } },
           },
-          include: { attendanceRecord: true },
+          include: {
+            attendanceRecord: {
+              select: {
+                date: true,
+              },
+            },
+          },
+        }),
+      ])
+    } else {
+      ;[members, assignments, attendances] = await Promise.all([
+        prisma.skilled.findMany({
+          where: { siteId },
+          orderBy: { name: 'asc' },
+          select: { id: true, name: true },
+        }),
+        prisma.skilledAssignment.findMany({
+          where: {
+            siteId,
+            date: { gte: formatDate(startDate), lte: formatDate(endDate) },
+          },
+        }),
+        prisma.skilledAttendance.findMany({
+          where: {
+            skilled: { siteId },
+            attendanceRecord: { date: { gte: formatDate(startDate), lte: formatDate(endDate) } },
+          },
+          include: {
+            attendanceRecord: {
+              select: {
+                date: true,
+              },
+            },
+          },
         }),
       ])
     }
 
     const assignmentsMap = new Map<string, Set<string>>()
     for (const assignment of assignments) {
-      const memberId = role === 'staff' ? (assignment as any).staffId : (assignment as any).dlId
+      const memberId =
+        role === 'staff'
+          ? (assignment as any).staffId
+          : role === 'dl'
+          ? (assignment as any).dlId
+          : (assignment as any).skilledId
       if (!assignmentsMap.has(assignment.date)) {
         assignmentsMap.set(assignment.date, new Set())
       }
       assignmentsMap.get(assignment.date)!.add(memberId)
     }
 
-    const attendanceMap = new Map<string, Map<string, boolean>>()
+    const attendanceMap = new Map<string, Map<string, { present: boolean; overtime: number }>>()
     for (const attendance of attendances) {
-      const memberId = role === 'staff' ? (attendance as any).staffId : (attendance as any).dlId
+      const memberId =
+        role === 'staff'
+          ? (attendance as any).staffId
+          : role === 'dl'
+          ? (attendance as any).dlId
+          : (attendance as any).skilledId
       const date = attendance.attendanceRecord.date
       if (!attendanceMap.has(date)) {
         attendanceMap.set(date, new Map())
       }
-      attendanceMap.get(date)!.set(memberId, attendance.present)
+      attendanceMap
+        .get(date)!
+        .set(memberId, { present: attendance.present, overtime: (attendance as any).overtimeHours || 0 })
     }
 
     const workbook = new ExcelJS.Workbook()
@@ -149,12 +200,13 @@ export async function GET(request: Request) {
       const rowData: { [key: string]: any } = { name: member.name }
       dateRange.forEach(date => {
         const isRostered = assignmentsMap.get(date)?.has(member.id) ?? false
-        const attendanceStatus = attendanceMap.get(date)?.get(member.id)
+        const attendanceInfo = attendanceMap.get(date)?.get(member.id)
         let status = ''
-        if (attendanceStatus === true) {
-          status = 'Present'
-        } else if (attendanceStatus === false) {
-          status = 'Absent'
+        if (attendanceInfo) {
+          status = attendanceInfo.present ? 'Present' : 'Absent'
+          if (attendanceInfo.overtime > 0) {
+            status += ` (${attendanceInfo.overtime} OT)`
+          }
         } else if (isRostered) {
           status = 'Absent' // Rostered but no attendance record
         }
@@ -167,23 +219,25 @@ export async function GET(request: Request) {
       row.eachCell((cell, colNumber) => {
         if (rowNumber > 1) {
           // Add basic cell styling based on content
-          if (cell.value === 'Present') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFC6EFCE' }, // Light Green
-            }
-            cell.font = {
-              color: { argb: 'FF006100' }, // Dark Green
-            }
-          } else if (cell.value === 'Absent') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFFFC7CE' }, // Light Red
-            }
-            cell.font = {
-              color: { argb: 'FF9C0006' }, // Dark Red
+          if (typeof cell.value === 'string') {
+            if (cell.value.startsWith('Present')) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFC6EFCE' }, // Light Green
+              }
+              cell.font = {
+                color: { argb: 'FF006100' }, // Dark Green
+              }
+            } else if (cell.value === 'Absent') {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFC7CE' }, // Light Red
+              }
+              cell.font = {
+                color: { argb: 'FF9C0006' }, // Dark Red
+              }
             }
           }
         }
@@ -198,7 +252,7 @@ export async function GET(request: Request) {
     })
 
     const buffer = await workbook.xlsx.writeBuffer()
-    const siteName = site.name.replace(/\s+/g, '_')
+    const siteName = site.name.trim().replace(/\s+/g, '_').replace(/_+$/, '')
     const filename = `${siteName}_${role}_attendance_${formatDate(startDate)}_to_${formatDate(
       endDate,
     )}.xlsx`

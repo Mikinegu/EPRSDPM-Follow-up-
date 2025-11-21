@@ -88,6 +88,7 @@ model StaffAttendance {
   attendanceRecordId String
   staffId            String
   present            Boolean
+  overtimeHours      Float    @default(0)
   createdAt          DateTime @default(now())
 
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
@@ -103,6 +104,7 @@ model SkilledAttendance {
   attendanceRecordId String
   skilledId          String
   present            Boolean
+  overtimeHours      Float    @default(0)
   createdAt          DateTime @default(now())
 
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
@@ -118,6 +120,7 @@ model DLAttendance {
   attendanceRecordId String
   dlId               String
   present            Boolean
+  overtimeHours      Float    @default(0)
   createdAt          DateTime @default(now())
 
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)

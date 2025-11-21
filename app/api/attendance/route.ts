@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
     }: {
       date: string
       siteId: string
-      staffAttendance: { staffId: string; present: boolean }[]
-      dlAttendance: { dlId: string; present: boolean }[]
-      skilledAttendance: { skilledId: string; present: boolean }[]
+      staffAttendance: { staffId: string; present: boolean; overtimeHours: number }[]
+      dlAttendance: { dlId: string; present: boolean; overtimeHours: number }[]
+      skilledAttendance: { skilledId: string; present: boolean; overtimeHours: number }[]
     } = await req.json()
 
     if (!date || !siteId) {
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
             attendanceRecordId: attendanceRecord.id,
             staffId: att.staffId,
             present: att.present,
+            overtimeHours: att.overtimeHours || 0,
           })),
         })
       }
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
             attendanceRecordId: attendanceRecord.id,
             dlId: att.dlId,
             present: att.present,
+            overtimeHours: att.overtimeHours || 0,
           })),
         })
       }
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest) {
             attendanceRecordId: attendanceRecord.id,
             skilledId: att.skilledId,
             present: att.present,
+            overtimeHours: att.overtimeHours || 0,
           })),
         })
       }

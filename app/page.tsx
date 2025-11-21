@@ -24,6 +24,7 @@ export default function Home() {
   const [staffAttendance, setStaffAttendance] = useState<Record<string, boolean>>({})
   const [dlAttendance, setDlAttendance] = useState<Record<string, boolean>>({})
   const [skilledAttendance, setSkilledAttendance] = useState<Record<string, boolean>>({})
+  const [overtimeHours, setOvertimeHours] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [availableStaff, setAvailableStaff] = useState<Member[]>([])
   const [availableDls, setAvailableDls] = useState<Member[]>([])
@@ -81,6 +82,7 @@ export default function Home() {
       setAvailableStaff(nextStaff)
       setAvailableDls(nextDls)
       setAvailableSkilled(nextSkilled)
+      setOvertimeHours({})
       setStaffAttendance(() => {
         const attendance: Record<string, boolean> = {}
         nextStaff.forEach(member => {
@@ -114,6 +116,7 @@ export default function Home() {
       setAvailableStaff(site.staff)
       setAvailableDls(site.dls)
       setAvailableSkilled(site.skilled)
+      setOvertimeHours({})
       setStaffAttendance(() => {
         const attendance: Record<string, boolean> = {}
         site.staff.forEach(member => {
@@ -146,6 +149,7 @@ export default function Home() {
     setStaffAttendance({})
     setDlAttendance({})
     setSkilledAttendance({})
+    setOvertimeHours({})
     if (site && date) {
       setAvailableStaff(site.staff)
       setAvailableDls(site.dls)
@@ -171,6 +175,13 @@ export default function Home() {
     setDlAttendance(prev => ({
       ...prev,
       [dlId]: !prev[dlId]
+    }))
+  }
+
+  const handleOvertimeChange = (memberId: string, value: string) => {
+    setOvertimeHours(prev => ({
+      ...prev,
+      [memberId]: Number(value),
     }))
   }
 
@@ -203,14 +214,17 @@ export default function Home() {
           staffAttendance: availableStaff.map(staff => ({
             staffId: staff.id,
             present: staffAttendance[staff.id] || false,
+            overtimeHours: overtimeHours[staff.id] || 0,
           })),
           dlAttendance: availableDls.map(dl => ({
             dlId: dl.id,
             present: dlAttendance[dl.id] || false,
+            overtimeHours: overtimeHours[dl.id] || 0,
           })),
           skilledAttendance: availableSkilled.map(skilled => ({
             skilledId: skilled.id,
             present: skilledAttendance[skilled.id] || false,
+            overtimeHours: overtimeHours[skilled.id] || 0,
           })),
         }),
       })
@@ -222,6 +236,7 @@ export default function Home() {
       setStaffAttendance({})
       setDlAttendance({})
       setSkilledAttendance({})
+      setOvertimeHours({})
       setAvailableStaff([])
       setAvailableDls([])
       setAvailableSkilled([])
@@ -316,13 +331,23 @@ export default function Home() {
                         className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
                       >
                         <span className="font-medium text-gray-800">{staff.name}</span>
-                        <input
-                          type="checkbox"
-                          checked={staffAttendance[staff.id] || false}
-                          onChange={() => toggleStaffAttendance(staff.id)}
-                          disabled={rosterLoading}
-                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                        />
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            value={overtimeHours[staff.id] || ''}
+                            onChange={(e) => handleOvertimeChange(staff.id, e.target.value)}
+                            disabled={!staffAttendance[staff.id]}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+                            placeholder="OT"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={staffAttendance[staff.id] || false}
+                            onChange={() => toggleStaffAttendance(staff.id)}
+                            disabled={rosterLoading}
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -346,13 +371,23 @@ export default function Home() {
                         className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
                       >
                         <span className="font-medium text-gray-800">{dl.name}</span>
-                        <input
-                          type="checkbox"
-                          checked={dlAttendance[dl.id] || false}
-                          onChange={() => toggleDlAttendance(dl.id)}
-                          disabled={rosterLoading}
-                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                        />
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            value={overtimeHours[dl.id] || ''}
+                            onChange={(e) => handleOvertimeChange(dl.id, e.target.value)}
+                            disabled={!dlAttendance[dl.id]}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+                            placeholder="OT"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={dlAttendance[dl.id] || false}
+                            onChange={() => toggleDlAttendance(dl.id)}
+                            disabled={rosterLoading}
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -376,13 +411,23 @@ export default function Home() {
                         className="flex items-center justify-between p-4 rounded-lg transition-colors cursor-pointer bg-white border-2 border-gray-300 has-[:checked]:bg-green-50 has-[:checked]:border-green-500"
                       >
                         <span className="font-medium text-gray-800">{skilled.name}</span>
-                        <input
-                          type="checkbox"
-                          checked={skilledAttendance[skilled.id] || false}
-                          onChange={() => toggleSkilledAttendance(skilled.id)}
-                          disabled={rosterLoading}
-                          className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                        />
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            value={overtimeHours[skilled.id] || ''}
+                            onChange={(e) => handleOvertimeChange(skilled.id, e.target.value)}
+                            disabled={!skilledAttendance[skilled.id]}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+                            placeholder="OT"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={skilledAttendance[skilled.id] || false}
+                            onChange={() => toggleSkilledAttendance(skilled.id)}
+                            disabled={rosterLoading}
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </label>
                     ))}
                   </div>

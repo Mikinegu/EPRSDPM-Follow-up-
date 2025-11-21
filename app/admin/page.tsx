@@ -21,9 +21,9 @@ interface AttendanceRecord {
     id: string
     name: string
   }
-  staffAttendance: Array<{ present: boolean }>
-  dlAttendance: Array<{ present: boolean }>
-  skilledAttendance: Array<{ present: boolean }>
+  staffAttendance: Array<{ present: boolean; overtimeHours: number }>
+  dlAttendance: Array<{ present: boolean; overtimeHours: number }>
+  skilledAttendance: Array<{ present: boolean; overtimeHours: number }>
 }
 
 interface StaffMember {
@@ -34,6 +34,7 @@ interface StaffMember {
   }
   attendance: Array<{
     present: boolean
+    overtimeHours: number
     attendanceRecord: {
       date: string
     }
@@ -48,6 +49,7 @@ interface DLMember {
   }
   attendance: Array<{
     present: boolean
+    overtimeHours: number
     attendanceRecord: {
       date: string
     }
@@ -62,6 +64,7 @@ interface SkilledMember {
   }
   attendance: Array<{
     present: boolean
+    overtimeHours: number
     attendanceRecord: {
       date: string
     }
@@ -937,6 +940,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Present</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DL Present</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skilled Present</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Overtime</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -947,6 +951,11 @@ export default function AdminDashboard() {
                       const dlTotal = (record.dlAttendance || []).length
                       const skilledPresent = (record.skilledAttendance || []).filter(a => a.present).length
                       const skilledTotal = (record.skilledAttendance || []).length
+                      const totalOvertime = [
+                        ...(record.staffAttendance || []),
+                        ...(record.dlAttendance || []),
+                        ...(record.skilledAttendance || []),
+                      ].reduce((acc, curr) => acc + (curr.overtimeHours || 0), 0)
 
                       return (
                         <tr key={record.id} className="hover:bg-gray-50">
@@ -961,6 +970,7 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <span className="text-green-600 font-medium">{skilledPresent}</span> / {skilledTotal}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{totalOvertime} hours</td>
                         </tr>
                       )
                     })}
@@ -1002,6 +1012,9 @@ export default function AdminDashboard() {
                                   }`}>
                                     {record.present ? 'Present' : 'Absent'}
                                   </span>
+                                  {record.overtimeHours > 0 && (
+                                    <span className="text-xs text-blue-600">({record.overtimeHours} OT)</span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1047,6 +1060,9 @@ export default function AdminDashboard() {
                                   }`}>
                                     {record.present ? 'Present' : 'Absent'}
                                   </span>
+                                  {record.overtimeHours > 0 && (
+                                    <span className="text-xs text-blue-600">({record.overtimeHours} OT)</span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1092,6 +1108,9 @@ export default function AdminDashboard() {
                                   }`}>
                                     {record.present ? 'Present' : 'Absent'}
                                   </span>
+                                  {record.overtimeHours > 0 && (
+                                    <span className="text-xs text-blue-600">({record.overtimeHours} OT)</span>
+                                  )}
                                 </div>
                               ))}
                             </div>

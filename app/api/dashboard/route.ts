@@ -98,16 +98,19 @@ export async function GET(req: NextRequest) {
         staffAttendance: {
           select: {
             present: true,
+            overtimeHours: true,
           },
         },
         dlAttendance: {
           select: {
             present: true,
+            overtimeHours: true,
           },
         },
         skilledAttendance: {
           select: {
             present: true,
+            overtimeHours: true,
           },
         },
       },
